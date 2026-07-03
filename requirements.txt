@@ -1,0 +1,25 @@
+# --- Core ---
+Django==5.1.4
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.1
+psycopg2-binary==2.9.10
+python-dotenv==1.0.1
+django-filter==24.3
+
+# --- Async (Celery + Redis) ---
+celery==5.4.0
+redis==5.2.1
+
+# --- IA / LLM (Gemini) ---
+google-genai==1.9.0
+
+# --- API docs (OpenAPI/Swagger) ---
+drf-spectacular==0.28.0
+
+# --- Servidor de produção ---
+gunicorn==23.0.0
+
+# --- Testes ---
+pytest==8.3.4
+pytest-django==4.9.0
+pytest-mock==3.14.0
