@@ -71,6 +71,33 @@ services:
       - redis
       - web
 
+  # --- WhatsApp (Evolution API) — opcional ---
+  # Sobe com:  docker compose --profile whatsapp up
+  # Após subir: crie a instância e escaneie o QR code (ver README).
+  # Requer o banco 'evolution' no Postgres:
+  #   docker compose exec db createdb -U postgres evolution
+  evolution:
+    image: evoapicloud/evolution-api:v2.3.7
+    profiles: ["whatsapp"]
+    ports:
+      - "8080:8080"
+    environment:
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-1fcc8077195d51dd47a76b4033806f52c83f4541f4119ff1}
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/evolution
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: evolution
+      # Encaminha automaticamente as mensagens recebidas para o nosso webhook.
+      WEBHOOK_GLOBAL_ENABLED: "true"
+      WEBHOOK_GLOBAL_URL: http://web:8000/api/whatsapp/webhook/
+    depends_on:
+      - db
+      - redis
+      - web
+
 volumes:
   pgdata:
   media:

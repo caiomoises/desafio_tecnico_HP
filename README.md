@@ -34,6 +34,8 @@ relevantes, tratando **sinônimos** do mercado automotivo — ex.: *"Filtro de �
   sugere peças do estoque, tratando sinônimos.
 - **Integração externa** ★ — atualização de estoque em **lote** via **API Key**
   (sem JWT), para ERPs/WMS.
+- **Canal WhatsApp** ✦ — conversar com o Consultor de IA pelo **WhatsApp** via
+  **Evolution API** (webhook + resposta assíncrona).
 - **Cronjob** — monitora estoque baixo e aplica reposições via **Celery Beat**.
 - **Testes** — cobrindo CRUD, tasks, consultor (com mock do LLM) e integração.
 - **Docs interativas** — Swagger em `/api/docs/` e OpenAPI em `/api/schema/`.
@@ -160,6 +162,52 @@ Ver `.env.example` (documentado). Principais:
    `aplicar_reposicao_peca`, que **soma** o valor ao estoque e **zera** o campo
    `reposicao`. O cronjob também aplica reposições pendentes como rede de segurança.
 
+## Canal WhatsApp (Evolution API)
+
+Permite conversar com o Consultor de IA pelo WhatsApp. O fluxo:
+
+```
+WhatsApp ⇄ Evolution API ──webhook──▶ /api/whatsapp/webhook/
+                                          │ (enfileira task Celery)
+                                          ▼
+                                     consultar() ─▶ Gemini
+                                          │
+             Evolution sendText ◀────── resposta formatada
+```
+
+O webhook responde **200 imediatamente** e o processamento (consulta à IA +
+resposta) roda de forma **assíncrona** no worker. A autenticidade do webhook é
+validada por `WHATSAPP_WEBHOOK_TOKEN` (header `apikey`).
+
+### Configuração
+
+1. Suba a Evolution API (serviço opcional já incluído no compose):
+   ```bash
+   docker compose exec db createdb -U postgres evolution   # cria o banco da Evolution
+   docker compose --profile whatsapp up -d evolution
+   ```
+2. Defina no `.env`: `EVOLUTION_API_URL` (ex.: `http://evolution:8080`),
+   `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE` e `WHATSAPP_WEBHOOK_TOKEN`.
+3. Crie a instância e conecte o WhatsApp (escaneie o QR code):
+   ```bash
+   curl -X POST http://localhost:8080/instance/create \
+     -H "apikey: $EVOLUTION_API_KEY" -H "Content-Type: application/json" \
+     -d '{"instanceName":"consultor","integration":"WHATSAPP-BAILEYS","qrcode":true}'
+   # abra o QR retornado (ou GET /instance/connect/consultor) e escaneie no celular
+   ```
+4. Configure o webhook da instância apontando para o backend, enviando o token:
+   ```bash
+   curl -X POST http://localhost:8080/webhook/set/consultor \
+     -H "apikey: $EVOLUTION_API_KEY" -H "Content-Type: application/json" \
+     -d '{"webhook":{"enabled":true,"url":"http://web:8000/api/whatsapp/webhook/",
+          "headers":{"apikey":"'"$WHATSAPP_WEBHOOK_TOKEN"'"},
+          "events":["MESSAGES_UPSERT"]}}'
+   ```
+5. Pronto: mande uma mensagem para o número conectado (ex.: *"meu carro está
+   fazendo barulho na roda"*) e receba as peças sugeridas pela IA.
+
+> O worker do Celery precisa estar rodando para processar as mensagens.
+
 ## Endpoints da API
 
 | Método | Rota | Auth | Descrição |
@@ -173,6 +221,7 @@ Ver `.env.example` (documentado). Principais:
 | GET | `/api/importacoes/` | JWT admin | Status das importações. |
 | POST | `/api/consultor/` | JWT | Consultor de IA. |
 | POST | `/api/integracao/estoque/` | API Key | Atualização de estoque em lote. |
+| POST | `/api/whatsapp/webhook/` | Token | Webhook de mensagens do WhatsApp (Evolution API). |
 | GET | `/api/docs/` | — | Swagger UI. |
 
 ## Exemplos de uso

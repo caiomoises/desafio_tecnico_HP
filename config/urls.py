@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/", include("apps.marketplace.urls")),
     path("api/", include("apps.consultor.urls")),
     path("api/", include("apps.integracao.urls")),
+    path("api/", include("apps.whatsapp.urls")),
     # --- Documentação (OpenAPI/Swagger) ---
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

@@ -13,6 +13,9 @@ redis==5.2.1
 # --- IA / LLM (Gemini) ---
 google-genai==1.9.0
 
+# --- Integração WhatsApp (Evolution API) ---
+httpx==0.28.1
+
 # --- API docs (OpenAPI/Swagger) ---
 drf-spectacular==0.28.0
 

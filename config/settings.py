@@ -52,6 +52,7 @@ LOCAL_APPS = [
     "apps.marketplace",
     "apps.consultor",
     "apps.integracao",
+    "apps.whatsapp",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -175,6 +176,13 @@ CONSULTOR_MAX_CANDIDATOS = int(os.getenv("CONSULTOR_MAX_CANDIDATOS", "25"))
 # --- Integração externa (API Key) ---
 INTEGRATION_API_KEY = os.getenv("INTEGRATION_API_KEY", "")
 INTEGRATION_API_KEY_HEADER = os.getenv("INTEGRATION_API_KEY_HEADER", "X-API-KEY")
+
+# --- Canal WhatsApp (Evolution API) ---
+EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "")
+EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY", "")
+EVOLUTION_INSTANCE = os.getenv("EVOLUTION_INSTANCE", "")
+# Token validado no header do webhook para autenticar chamadas da Evolution.
+WHATSAPP_WEBHOOK_TOKEN = os.getenv("WHATSAPP_WEBHOOK_TOKEN", "")
 
 # --- Uploads ---
 MEDIA_URL = "media/"
