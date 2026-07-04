@@ -183,6 +183,13 @@ EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY", "")
 EVOLUTION_INSTANCE = os.getenv("EVOLUTION_INSTANCE", "")
 # Token validado no header do webhook para autenticar chamadas da Evolution.
 WHATSAPP_WEBHOOK_TOKEN = os.getenv("WHATSAPP_WEBHOOK_TOKEN", "")
+# Allowlist opcional de números (só os dígitos, ex.: "5511999998888").
+# Vazia = responde a todos os contatos 1:1; preenchida = responde só a esses.
+WHATSAPP_ALLOWLIST = [
+    "".join(filter(str.isdigit, n))
+    for n in os.getenv("WHATSAPP_ALLOWLIST", "").split(",")
+    if n.strip()
+]
 
 # --- Uploads ---
 MEDIA_URL = "media/"

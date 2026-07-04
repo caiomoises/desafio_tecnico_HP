@@ -23,11 +23,17 @@ class EvolutionError(Exception):
     """Falha ao comunicar com a Evolution API."""
 
 
+def _apenas_digitos(valor: str) -> str:
+    """Extrai só os dígitos de um JID/número (ex.: '5511999@s.whatsapp.net')."""
+    return "".join(filter(str.isdigit, valor))
+
+
 def extrair_mensagem(payload: dict) -> dict | None:
     """Extrai remetente e texto de um webhook `messages.upsert` da Evolution.
 
     Retorna `None` para eventos que não devem ser respondidos (mensagens
-    enviadas por nós mesmos, sem texto, ou de outra instância).
+    enviadas por nós mesmos, sem texto, de outra instância, de grupos, ou de
+    números fora da allowlist quando ela está configurada).
     """
     instancia = payload.get("instance")
     if settings.EVOLUTION_INSTANCE and instancia and instancia != settings.EVOLUTION_INSTANCE:
@@ -45,6 +51,16 @@ def extrair_mensagem(payload: dict) -> dict | None:
     ).get("text")
     numero = key.get("remoteJid")
     if not texto or not numero:
+        return None
+
+    # Só conversas 1:1: ignora grupos (@g.us), broadcast/status e newsletters.
+    if not numero.endswith("@s.whatsapp.net"):
+        logger.debug("Ignorando mensagem de origem não-1:1 '%s'.", numero)
+        return None
+
+    # Allowlist opcional: se configurada, responde apenas aos números listados.
+    if settings.WHATSAPP_ALLOWLIST and _apenas_digitos(numero) not in settings.WHATSAPP_ALLOWLIST:
+        logger.info("Número '%s' fora da allowlist; ignorado.", numero)
         return None
 
     return {"numero": numero, "texto": texto.strip(), "nome": data.get("pushName", "")}

@@ -51,6 +51,40 @@ def test_extrair_mensagem_outra_instancia_ignorada(settings):
     assert extrair_mensagem(payload) is None
 
 
+def test_extrair_mensagem_ignora_grupo(settings):
+    settings.EVOLUTION_INSTANCE = "consultor"
+    payload = _payload(numero="120363@g.us")
+    assert extrair_mensagem(payload) is None
+
+
+def test_extrair_mensagem_ignora_broadcast(settings):
+    settings.EVOLUTION_INSTANCE = "consultor"
+    payload = _payload(numero="status@broadcast")
+    assert extrair_mensagem(payload) is None
+
+
+def test_extrair_mensagem_allowlist_bloqueia_numero_de_fora(settings):
+    settings.EVOLUTION_INSTANCE = "consultor"
+    settings.WHATSAPP_ALLOWLIST = ["5511888887777"]
+    payload = _payload(numero="5511999998888@s.whatsapp.net")
+    assert extrair_mensagem(payload) is None
+
+
+def test_extrair_mensagem_allowlist_permite_numero_listado(settings):
+    settings.EVOLUTION_INSTANCE = "consultor"
+    settings.WHATSAPP_ALLOWLIST = ["5511999998888"]
+    payload = _payload(numero="5511999998888@s.whatsapp.net")
+    info = extrair_mensagem(payload)
+    assert info["numero"] == "5511999998888@s.whatsapp.net"
+
+
+def test_extrair_mensagem_allowlist_vazia_responde_todos(settings):
+    settings.EVOLUTION_INSTANCE = "consultor"
+    settings.WHATSAPP_ALLOWLIST = []
+    info = extrair_mensagem(_payload(numero="5511999998888@s.whatsapp.net"))
+    assert info is not None
+
+
 # --- formatar_resposta ---
 
 def test_formatar_resposta_com_pecas(pecas_sinonimos):

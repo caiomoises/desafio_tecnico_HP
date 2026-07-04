@@ -179,6 +179,11 @@ O webhook responde **200 imediatamente** e o processamento (consulta à IA +
 resposta) roda de forma **assíncrona** no worker. A autenticidade do webhook é
 validada por `WHATSAPP_WEBHOOK_TOKEN` (header `apikey`).
 
+O bot responde apenas a **conversas 1:1** — mensagens de grupos (`@g.us`),
+broadcast/status e newsletters são ignoradas. Opcionalmente, `WHATSAPP_ALLOWLIST`
+(números separados por vírgula) restringe as respostas a números específicos;
+vazia, responde a todos os contatos.
+
 ### Configuração
 
 1. Suba a Evolution API (serviço opcional já incluído no compose):
