@@ -145,6 +145,11 @@ Ver `.env.example` (documentado). Principais:
 | `INTEGRATION_API_KEY` | API Key da integração externa (ERP/WMS). |
 | `INTEGRATION_API_KEY_HEADER` | Header da API Key (padrão `X-API-KEY`). |
 | `RESTOCK_INTERVAL_MINUTES` | Intervalo do cronjob de reposição (padrão 60). |
+| `EVOLUTION_API_URL` | URL da Evolution API (ex.: `http://evolution:8080` no Docker ou `http://localhost:8080` com backend local). |
+| `EVOLUTION_API_KEY` | API Key da Evolution (autentica as chamadas à Evolution). |
+| `EVOLUTION_INSTANCE` | Nome da instância do WhatsApp (padrão `consultor`). |
+| `WHATSAPP_WEBHOOK_TOKEN` | Token esperado no header `apikey` do webhook. |
+| `WHATSAPP_ALLOWLIST` | Opcional: números (separados por vírgula) autorizados a receber resposta. Vazio = todos os contatos 1:1. |
 
 ## Tarefas assíncronas e cronjob
 
@@ -184,34 +189,74 @@ broadcast/status e newsletters são ignoradas. Opcionalmente, `WHATSAPP_ALLOWLIS
 (números separados por vírgula) restringe as respostas a números específicos;
 vazia, responde a todos os contatos.
 
-### Configuração
+### Subir a Evolution API
 
-1. Suba a Evolution API (serviço opcional já incluído no compose):
-   ```bash
-   docker compose exec db createdb -U postgres evolution   # cria o banco da Evolution
-   docker compose --profile whatsapp up -d evolution
-   ```
-2. Defina no `.env`: `EVOLUTION_API_URL` (ex.: `http://evolution:8080`),
-   `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE` e `WHATSAPP_WEBHOOK_TOKEN`.
-3. Crie a instância e conecte o WhatsApp (escaneie o QR code):
+Há dois cenários, dependendo de onde o backend roda. **A URL do webhook muda entre
+eles** — é o único detalhe a não confundir.
+
+**Cenário A — tudo em Docker** (backend no `docker-compose.yml`). A Evolution já
+está no compose como serviço opcional (profile `whatsapp`):
+
+```bash
+docker compose exec db createdb -U postgres evolution   # cria o banco da Evolution
+docker compose --profile whatsapp up -d evolution
+```
+- No `.env`: `EVOLUTION_API_URL=http://evolution:8080`.
+- URL do webhook (passo 3): `http://web:8000/api/whatsapp/webhook/`.
+
+**Cenário B — backend rodando localmente** (`runserver` fora do Docker). Use o
+compose isolado `docker-compose.evolution.yml`, que sobe a Evolution com Postgres/
+Redis próprios e fala com o Django local via `host.docker.internal`:
+
+```bash
+docker compose -f docker-compose.evolution.yml up -d
+# painel: http://localhost:8080/manager  (login com a EVOLUTION_API_KEY)
+```
+- No `.env`: `EVOLUTION_API_URL=http://localhost:8080` e inclua
+  `host.docker.internal` em `DJANGO_ALLOWED_HOSTS`.
+- URL do webhook (passo 3): `http://host.docker.internal:8000/api/whatsapp/webhook/`.
+
+### Conectar o WhatsApp
+
+1. Defina no `.env`: `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE` (padrão `consultor`)
+   e `WHATSAPP_WEBHOOK_TOKEN` (além do `EVOLUTION_API_URL` do cenário acima).
+2. Crie a instância e conecte o WhatsApp (escaneie o QR code):
    ```bash
    curl -X POST http://localhost:8080/instance/create \
      -H "apikey: $EVOLUTION_API_KEY" -H "Content-Type: application/json" \
      -d '{"instanceName":"consultor","integration":"WHATSAPP-BAILEYS","qrcode":true}'
    # abra o QR retornado (ou GET /instance/connect/consultor) e escaneie no celular
    ```
-4. Configure o webhook da instância apontando para o backend, enviando o token:
+3. Configure o webhook da instância apontando para o backend (use a URL do seu
+   cenário), enviando o token:
    ```bash
    curl -X POST http://localhost:8080/webhook/set/consultor \
      -H "apikey: $EVOLUTION_API_KEY" -H "Content-Type: application/json" \
      -d '{"webhook":{"enabled":true,"url":"http://web:8000/api/whatsapp/webhook/",
           "headers":{"apikey":"'"$WHATSAPP_WEBHOOK_TOKEN"'"},
           "events":["MESSAGES_UPSERT"]}}'
+   # backend local: troque a url por http://host.docker.internal:8000/api/whatsapp/webhook/
    ```
-5. Pronto: mande uma mensagem para o número conectado (ex.: *"meu carro está
+4. Pronto: mande uma mensagem para o número conectado (ex.: *"meu carro está
    fazendo barulho na roda"*) e receba as peças sugeridas pela IA.
 
 > O worker do Celery precisa estar rodando para processar as mensagens.
+
+### Demonstração
+
+Testes reais no WhatsApp — o consultor trata **sinônimos** e interpreta
+**sintomas**, sempre com preço/estoque vindos do banco:
+
+| Sinônimos de peça | Sintomas → peça | Sintoma + sinônimos |
+| --- | --- | --- |
+| ![Consulta de amortecedor no WhatsApp, com variações de nome do mesmo item](img_testes_wpp/01-amortecedor-sinonimos.jpeg) | ![Farol sem peça em estoque e carro que não liga sugerindo bateria](img_testes_wpp/02-sintomas-farol-bateria.jpeg) | ![Velas de ignição e barulho na roda sugerindo rolamento e cubo](img_testes_wpp/03-velas-barulho-na-roda.jpeg) |
+
+- **Sinônimos** — *"Tem amortecedor?"* retorna o mesmo item com nomes distintos
+  entre fornecedores (*Dianteiro Esquerdo*, *Dianteiro LE*, *Lado Esq*…).
+- **Sintomas** — *"meu carro não está ligando"* sugere bateria; *"barulho na
+  roda"* sugere rolamento/cubo de roda.
+- **Fallback** — quando não há peça no estoque (ex.: sistema de iluminação), o bot
+  responde de forma clara sem inventar itens.
 
 ## Endpoints da API
 
