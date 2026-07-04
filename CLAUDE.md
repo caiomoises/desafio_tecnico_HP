@@ -16,6 +16,7 @@ sinônimos do mercado automotivo (ex.: "Filtro de Óleo" ≡ "Filtro do Motor" �
 - **Celery + Redis** — import de CSV assíncrono e cronjob de reposição de estoque
 - **JWT** via `djangorestframework-simplejwt`
 - **Gemini** (`google-genai`, modelo `gemini-2.5-flash`) para o consultor
+- **Evolution API** (`httpx`) — canal WhatsApp para o consultor
 - **pytest** (`pytest-django`, `pytest-mock`) para testes
 
 ## Arquitetura / organização
@@ -31,6 +32,8 @@ apps/
     services.py         # pré-filtro trigram + chamada ao Gemini (mockável)
   integracao/           # atualização de estoque em lote via API Key (sem JWT)
     authentication.py   # APIKeyAuthentication
+  whatsapp/             # canal WhatsApp via Evolution API (webhook + Celery)
+    services.py         # cliente Evolution (enviar_texto), parse/format
 catalogs/               # os 5 CSVs fornecidos
 ```
 
